@@ -137,6 +137,12 @@
   let tornadoFit = [];
   let aiPath = [];
   let aiTimer = 0;
+  let humanAiPath = [];
+  let humanAiTimer = 0;
+  let humanAiStuck = 0;
+  let humanAiFlee = false;
+  let humanAiTarget = null;
+  let humanAiCoin = null;
   let dashHeld = false;
   let jumpHeld = false;
   let coins = [];
@@ -730,6 +736,12 @@
     shots = [];
     aiPath = [];
     aiTimer = 0;
+    humanAiPath = [];
+    humanAiTimer = 0;
+    humanAiStuck = 0;
+    humanAiFlee = false;
+    humanAiTarget = null;
+    humanAiCoin = null;
     lives = settings.lives;
     score = 0;
     coinsGot = 0;
@@ -1232,49 +1244,341 @@
     return normalize((next.c + 0.5) * TILE - tornado.x, (next.r + 0.5) * TILE - tornado.y);
   }
 
-  function aiHumanWish() {
-    let gx = 0;
-    let gy = 0;
-    let have = false;
-    let best = null;
-    let bestD = Infinity;
-    for (const coin of coins) {
-      if (coin.taken || coin.flying) continue;
-      const dist = Math.hypot(coin.x - human.x, coin.y - human.y);
-      if (dist < bestD) {
-        bestD = dist;
-        best = coin;
+  function humanWalkable(c, r) {
+    if (c < 0 || r < 0 || c >= COLS || r >= ROWS) return false;
+    const x = (c + 0.5) * TILE;
+    const y = (r + 0.5) * TILE;
+    if (blocked(x, y, CONFIG.humanRadius)) return false;
+    if (coinsGot > 0) {
+      for (const prop of props) {
+        if (!prop.alive || prop.pulling || prop.kind !== "monster") continue;
+        if (c >= prop.c && c < prop.c + prop.w && r >= prop.r && r < prop.r + prop.h) return false;
       }
     }
-    if (best) {
-      gx = best.x - human.x;
-      gy = best.y - human.y;
-      have = true;
+    return true;
+  }
+
+  function humanStepOk(c, r, nc, nr) {
+    if (!humanWalkable(nc, nr)) return false;
+    const x = (c + nc + 1) * TILE * 0.5;
+    const y = (r + nr + 1) * TILE * 0.5;
+    return !blocked(x, y, CONFIG.humanRadius);
+  }
+
+  function nearestHumanTile(x, y) {
+    const c0 = clamp(Math.floor(x / TILE), 0, COLS - 1);
+    const r0 = clamp(Math.floor(y / TILE), 0, ROWS - 1);
+    if (humanWalkable(c0, r0)) return [c0, r0];
+    let best = null;
+    let bestD = Infinity;
+    for (let r = r0 - 3; r <= r0 + 3; r++) {
+      for (let c = c0 - 3; c <= c0 + 3; c++) {
+        if (!humanWalkable(c, r)) continue;
+        const dx = x - (c + 0.5) * TILE;
+        const dy = y - (r + 0.5) * TILE;
+        const d = dx * dx + dy * dy;
+        if (d < bestD) {
+          bestD = d;
+          best = [c, r];
+        }
+      }
     }
-    const threat = Math.hypot(tornado.x - human.x, tornado.y - human.y);
-    if (!tornado.hopping && threat < 110) {
-      gx += (human.x - tornado.x) * 1.8;
-      gy += (human.y - tornado.y) * 1.8;
-      have = true;
+    return best || [c0, r0];
+  }
+
+  function tileDanger(c, r) {
+    const x = (c + 0.5) * TILE;
+    const y = (r + 0.5) * TILE;
+    let danger = 0;
+    if (tornado) {
+      const dist = Math.hypot(x - tornado.x, y - tornado.y);
+      if (tornado.hopping) {
+        if (dist < 26) danger += 18;
+      } else if (dist < 20) danger += 70;
+      else if (dist < 36) danger += 36;
+      else if (dist < 58) danger += 18;
+      else if (dist < 88) danger += 6;
     }
-    if (!have) return { x: 0, y: 0 };
-    const direct = normalize(gx, gy);
-    const tries = [
-      direct,
+    for (const shot of shots) {
+      const px = shot.x + shot.vx * 0.2;
+      const py = shot.y + shot.vy * 0.2;
+      const dist = Math.hypot(x - px, y - py);
+      if (dist < 22) danger += 40;
+      else if (dist < 40) danger += 14;
+    }
+    return danger;
+  }
+
+  function heapPush(heap, key, cost) {
+    heap.push({ key, cost });
+    let i = heap.length - 1;
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (heap[parent].cost <= heap[i].cost) break;
+      const swap = heap[parent];
+      heap[parent] = heap[i];
+      heap[i] = swap;
+      i = parent;
+    }
+  }
+
+  function heapPop(heap) {
+    const top = heap[0];
+    const last = heap.pop();
+    if (heap.length && last) {
+      heap[0] = last;
+      let i = 0;
+      for (;;) {
+        let small = i;
+        const left = i * 2 + 1;
+        const right = left + 1;
+        if (left < heap.length && heap[left].cost < heap[small].cost) small = left;
+        if (right < heap.length && heap[right].cost < heap[small].cost) small = right;
+        if (small === i) break;
+        const swap = heap[i];
+        heap[i] = heap[small];
+        heap[small] = swap;
+        i = small;
+      }
+    }
+    return top;
+  }
+
+  function unwindPath(prev, start, end) {
+    const path = [];
+    let key = end;
+    let guard = 0;
+    while (key !== -1 && guard++ < 800) {
+      path.push({ c: key % COLS, r: Math.floor(key / COLS) });
+      if (key === start) break;
+      key = prev[key];
+    }
+    path.reverse();
+    if (path.length && tileKey(path[0].c, path[0].r) === start) path.shift();
+    return path;
+  }
+
+  function routeHuman() {
+    const [sc, sr] = nearestHumanTile(human.x, human.y);
+    const start = tileKey(sc, sr);
+    const cost = new Float32Array(COLS * ROWS);
+    const prev = new Int16Array(COLS * ROWS);
+    const seen = new Uint8Array(COLS * ROWS);
+    cost.fill(Infinity);
+    prev.fill(-1);
+    if (!humanWalkable(sc, sr)) return { start, cost, prev };
+    cost[start] = 0;
+    const heap = [];
+    heapPush(heap, start, 0);
+    while (heap.length) {
+      const current = heapPop(heap);
+      if (!current || seen[current.key]) continue;
+      seen[current.key] = 1;
+      const c = current.key % COLS;
+      const r = Math.floor(current.key / COLS);
+      const steps = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      for (const [dc, dr] of steps) {
+        const nc = c + dc;
+        const nr = r + dr;
+        if (!humanStepOk(c, r, nc, nr)) continue;
+        const key = tileKey(nc, nr);
+        const next = cost[current.key] + 10 + tileDanger(nc, nr);
+        if (next >= cost[key]) continue;
+        cost[key] = next;
+        prev[key] = current.key;
+        heapPush(heap, key, next);
+      }
+    }
+    return { start, cost, prev };
+  }
+
+  function buildHumanAiPath() {
+    const threat = Math.hypot(human.x - tornado.x, human.y - tornado.y);
+    const panic = !tornado.hopping && threat < (humanAiFlee ? 104 : 58);
+    const { start, cost, prev } = routeHuman();
+    let grab = null;
+    if (panic) {
+      for (const coin of coins) {
+        if (coin.taken || coin.flying) continue;
+        const dist = Math.hypot(coin.x - human.x, coin.y - human.y);
+        if (dist > 28) continue;
+        if (Math.hypot(coin.x - tornado.x, coin.y - tornado.y) + 8 < threat) continue;
+        const [cc, cr] = nearestHumanTile(coin.x, coin.y);
+        const key = tileKey(cc, cr);
+        if (cost[key] === Infinity) continue;
+        grab = { coin, key, x: coin.x, y: coin.y };
+        break;
+      }
+    }
+    if (panic && !grab) {
+      let bestKey = start;
+      let bestScore = -Infinity;
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const key = tileKey(c, r);
+          if (cost[key] === Infinity) continue;
+          const x = (c + 0.5) * TILE;
+          const y = (r + 0.5) * TILE;
+          let score = Math.hypot(x - tornado.x, y - tornado.y) - cost[key] * 0.35;
+          if (tornadoFit[r] && !tornadoFit[r][c]) score += 56;
+          if (score > bestScore) {
+            bestScore = score;
+            bestKey = key;
+          }
+        }
+      }
+      humanAiFlee = true;
+      humanAiCoin = null;
+      humanAiPath = unwindPath(prev, start, bestKey);
+      const end = humanAiPath.length ? humanAiPath[humanAiPath.length - 1] : { c: start % COLS, r: Math.floor(start / COLS) };
+      humanAiTarget = { x: (end.c + 0.5) * TILE, y: (end.r + 0.5) * TILE };
+      return;
+    }
+
+    let chosen = null;
+    let chosenCost = Infinity;
+    for (const coin of coins) {
+      if (coin.taken || coin.flying) continue;
+      const [cc, cr] = nearestHumanTile(coin.x, coin.y);
+      const key = tileKey(cc, cr);
+      if (cost[key] === Infinity) continue;
+      const extra = Math.hypot(coin.x - (cc + 0.5) * TILE, coin.y - (cr + 0.5) * TILE) * 0.15;
+      const total = cost[key] + extra;
+      if (total < chosenCost) {
+        chosenCost = total;
+        chosen = { coin, key, x: coin.x, y: coin.y };
+      }
+    }
+    if (!grab && humanAiCoin && !humanAiCoin.taken && !humanAiCoin.flying) {
+      const [cc, cr] = nearestHumanTile(humanAiCoin.x, humanAiCoin.y);
+      const key = tileKey(cc, cr);
+      if (cost[key] < Infinity && cost[key] <= chosenCost * 1.2 + 12) {
+        chosen = { coin: humanAiCoin, key, x: humanAiCoin.x, y: humanAiCoin.y };
+      }
+    }
+    const pick = grab || chosen;
+    if (!pick) {
+      humanAiFlee = false;
+      humanAiCoin = null;
+      humanAiPath = [];
+      humanAiTarget = null;
+      return;
+    }
+    humanAiFlee = panic;
+    humanAiCoin = pick.coin;
+    humanAiTarget = { x: pick.x, y: pick.y };
+    humanAiPath = unwindPath(prev, start, pick.key);
+  }
+
+  function humanDirClear(dir, dist) {
+    if (!dir.x && !dir.y) return false;
+    return !blocked(human.x + dir.x * dist, human.y + dir.y * dist, CONFIG.humanRadius);
+  }
+
+  function steerHumanPath() {
+    let tx = humanAiTarget ? humanAiTarget.x : human.x;
+    let ty = humanAiTarget ? humanAiTarget.y : human.y;
+    if (humanAiPath.length) {
+      let point = humanAiPath[0];
+      tx = (point.c + 0.5) * TILE;
+      ty = (point.r + 0.5) * TILE;
+      if (humanAiPath.length > 1) {
+        const far = humanAiPath[1];
+        const farD = Math.hypot(human.x - (far.c + 0.5) * TILE, human.y - (far.r + 0.5) * TILE);
+        if (farD + 2 < Math.hypot(human.x - tx, human.y - ty)) humanAiPath.shift();
+      }
+      point = humanAiPath[0];
+      tx = (point.c + 0.5) * TILE;
+      ty = (point.r + 0.5) * TILE;
+      if (Math.hypot(human.x - tx, human.y - ty) < 6) {
+        humanAiPath.shift();
+        if (humanAiPath.length) {
+          point = humanAiPath[0];
+          tx = (point.c + 0.5) * TILE;
+          ty = (point.r + 0.5) * TILE;
+        } else if (humanAiTarget) {
+          tx = humanAiTarget.x;
+          ty = humanAiTarget.y;
+        }
+      } else if (humanAiPath.length > 1) {
+        const far = humanAiPath[1];
+        const fx = (far.c + 0.5) * TILE;
+        const fy = (far.r + 0.5) * TILE;
+        const midX = (human.x + fx) / 2;
+        const midY = (human.y + fy) / 2;
+        const hot = !tornado.hopping && Math.hypot(midX - tornado.x, midY - tornado.y) < 30;
+        if (!hot && !blocked(midX, midY, CONFIG.humanRadius)) {
+          tx = fx;
+          ty = fy;
+        }
+      }
+    }
+    if (Math.hypot(tx - human.x, ty - human.y) < 3) return { x: 0, y: 0 };
+    const direct = normalize(tx - human.x, ty - human.y);
+    if (humanDirClear(direct, 8)) return direct;
+    const sides = [
       { x: -direct.y, y: direct.x },
       { x: direct.y, y: -direct.x },
     ];
-    for (const dir of tries) {
-      if (!dir.x && !dir.y) continue;
-      if (blocked(human.x + dir.x * 12, human.y + dir.y * 12, CONFIG.humanRadius)) continue;
-      return dir;
+    let best = null;
+    let bestD = Infinity;
+    for (const side of sides) {
+      if (!humanDirClear(side, 8)) continue;
+      const dist = Math.hypot(human.x + side.x * 12 - tx, human.y + side.y * 12 - ty);
+      if (dist < bestD) {
+        bestD = dist;
+        best = side;
+      }
     }
-    return direct;
+    if (best) return best;
+    const cardinals = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+    let escape = null;
+    let escapeScore = -Infinity;
+    for (const dir of cardinals) {
+      if (!humanDirClear(dir, 8)) continue;
+      const nx = human.x + dir.x * 12;
+      const ny = human.y + dir.y * 12;
+      const toGoal = -Math.hypot(nx - tx, ny - ty);
+      const fromTornado = Math.hypot(nx - tornado.x, ny - tornado.y);
+      const score = humanAiFlee ? fromTornado * 2 + toGoal : toGoal * 2 + fromTornado * 0.25;
+      if (score > escapeScore) {
+        escapeScore = score;
+        escape = dir;
+      }
+    }
+    return escape || direct;
+  }
+
+  function aiHumanWish(dt) {
+    if (!human || !tornado) return { x: 0, y: 0 };
+    const moved = Math.hypot(human.vx, human.vy);
+    if (moved < 10) humanAiStuck += dt;
+    else humanAiStuck = 0;
+    const threat = Math.hypot(human.x - tornado.x, human.y - tornado.y);
+    const wantFlee = !tornado.hopping && threat < (humanAiFlee ? 104 : 58);
+    if (wantFlee !== humanAiFlee) humanAiTimer = 0;
+    if (humanAiCoin && (humanAiCoin.taken || humanAiCoin.flying)) humanAiTimer = 0;
+    humanAiTimer -= dt;
+    if (humanAiTimer <= 0 || humanAiStuck > 0.2) {
+      buildHumanAiPath();
+      humanAiTimer = humanAiStuck > 0.2 ? 0.12 : 0.26;
+      humanAiStuck = 0;
+    }
+    return steerHumanPath();
   }
 
   function aiHumanShouldDash() {
     if (human.charges <= 0 || human.dashing || tornado.hopping) return false;
-    return Math.hypot(tornado.x - human.x, tornado.y - human.y) < 46;
+    const dist = Math.hypot(human.x - tornado.x, human.y - tornado.y);
+    const urgent = dist < 52;
+    const early = dist < 86 && human.charges === CONFIG.dashCharges;
+    if (!urgent && !early) return false;
+    const away = normalize(human.x - tornado.x, human.y - tornado.y);
+    const forward = normalize(human.dx, human.dy);
+    if (!forward.x && !forward.y) return false;
+    if (forward.x * away.x + forward.y * away.y < 0.25) return false;
+    if (!humanDirClear(forward, 16)) return false;
+    return true;
   }
 
   function controlWish(role) {
@@ -1886,7 +2190,7 @@
     }
 
     if (human.state === "run") {
-      const wish = computerHuman() ? aiHumanWish() : controlWish("human");
+      const wish = computerHuman() ? aiHumanWish(dt) : controlWish("human");
       if (wish.x !== 0 || wish.y !== 0) {
         human.dx = wish.x;
         human.dy = wish.y;
