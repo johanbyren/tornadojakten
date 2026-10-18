@@ -421,10 +421,33 @@ body.touch #touch { display: block; }
 .cluster[hidden] { display: none !important; }
 
 body.solo-touch .cluster {
-  left: 50%;
+  left: calc(12px + env(safe-area-inset-left));
   right: auto;
-  transform: translateX(-50%);
-  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: none;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  height: 108px;
+  grid-template-rows: 52px 52px;
+}
+
+body.solo-touch .cluster .dash,
+body.solo-touch .cluster .shoot {
+  position: fixed;
+  width: 88px;
+  height: 88px;
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  font-size: 1rem;
+}
+
+body.solo-touch .cluster .dash {
+  right: calc(116px + env(safe-area-inset-right));
+}
+
+body.solo-touch .cluster .shoot {
+  right: calc(16px + env(safe-area-inset-right));
+}
+
+body.solo-touch .cluster.left .dash {
+  right: calc(16px + env(safe-area-inset-right));
 }
 
 .cluster {
