@@ -376,9 +376,20 @@ h1 { font-size: 2.2rem; }
   color: #6d5bd0;
 }
 
+#control-pick[hidden],
+#ai-row[hidden] { display: none !important; }
+.back-link {
+  display: block;
+  margin: 8px auto 0;
+  border: 0;
+  background: transparent;
+  color: #6d5bd0;
+  font-weight: 800;
+  cursor: pointer;
+}
 .actions { display: grid; gap: 8px; }
 .actions.duo { grid-template-columns: 1fr 1fr; }
-.actions.duo .play { font-size: 1rem; padding: 12px 8px; }
+.actions.duo .play { font-size: 1rem; padding: 12px 8px; width: 100%; }
 
 .play {
   font-size: 1.12rem;

@@ -42,7 +42,7 @@
   const WORLD_W = COLS * TILE;
   const WORLD_H = ROWS * TILE;
   const SKY = 48;
-  const MAP_IDS = ["dalen", "korsningen", "fickorna", "broarna", "oknen", "vulkanen"];
+  const MAP_IDS = ["dalen", "korsningen", "fickorna", "broarna", "oknen", "karavanen", "vulkanen", "kratern"];
 
   const params = new URLSearchParams(location.search);
   const DEBUG = params.has("debug");
@@ -466,6 +466,47 @@
       doors: [[15, 8]],
     },
     {
+      id: "karavanen",
+      name: "Karavanen",
+      hint: "Två dynväggar. En springa var, och en bred port.",
+      theme: "desert",
+      solid(c, r) {
+        const topWall = r === 6 && c >= 1 && c <= 30 && c !== 9 && !(c >= 18 && c <= 20);
+        const lowWall = r === 12 && c >= 1 && c <= 30 && c !== 23 && !(c >= 7 && c <= 9);
+        if (topWall || lowWall) return true;
+        if (inEllipse(c, r, 4.2, 3.2, 2.1, 1.3)) return true;
+        if (inEllipse(c, r, 27.2, 9.2, 1.8, 1.15)) return true;
+        if (inEllipse(c, r, 16, 15.4, 2.2, 1.15)) return true;
+        return false;
+      },
+      path(c, r) {
+        if (r === 3 || r === 9 || r === 15) return true;
+        if (c === 14 && r !== 6 && r !== 12) return true;
+        if (r === 6 && c >= 18 && c <= 20) return true;
+        if (r === 12 && c >= 7 && c <= 9) return true;
+        return false;
+      },
+      oasis(c, r) {
+        return c >= 2 && c <= 6 && r >= 13 && r <= 15;
+      },
+      houses: [],
+      trees: [],
+      cacti: [
+        [3, 4], [8, 2], [12, 4], [22, 3], [26, 2], [29, 4],
+        [2, 8], [7, 9], [16, 8], [21, 10], [28, 8],
+        [3, 14], [11, 15], [18, 13], [24, 15], [29, 13],
+      ],
+      camels: [[5, 9], [13, 3], [20, 9], [11, 14], [25, 11]],
+      tents: [[8, 1], [23, 1], [2, 10], [15, 10], [27, 14]],
+      monsters: [],
+      coins: [[4, 14], [10, 3], [22, 4], [16, 9], [24, 15], [6, 8]],
+      spawns: [[15, 3], [4, 9], [26, 4], [12, 9], [20, 15], [8, 14], [28, 10], [14, 14], [6, 3]],
+      humanStart: [8, 14],
+      tornadoStart: [15, 3],
+      cracks: [[9, 6], [23, 12]],
+      doors: [[19, 6], [8, 12]],
+    },
+    {
       id: "vulkanen",
       name: "Vulkanen",
       hint: "Lava, en smal springa och en stenbro.",
@@ -511,6 +552,51 @@
       tornadoStart: [29, 10],
       cracks: [[4, 6], [4, 7], [9, 12]],
       doors: [[14, 6], [14, 7], [21, 12]],
+    },
+    {
+      id: "kratern",
+      name: "Kratern",
+      hint: "Lava i två band. Springor för människan, broar för tornadon.",
+      theme: "volcano",
+      solid(c, r) {
+        if (inEllipse(c, r, 8, 3, 2.3, 1.45)) return true;
+        if (inEllipse(c, r, 25, 3.3, 2.1, 1.35)) return true;
+        if (inEllipse(c, r, 16, 15.3, 2.4, 1.2)) return true;
+        return false;
+      },
+      lava(c, r) {
+        const crackA = c === 5 && (r === 5 || r === 6);
+        const bridgeA = c >= 15 && c <= 17 && (r === 5 || r === 6);
+        const crackB = c === 26 && r === 11;
+        const bridgeB = c >= 9 && c <= 11 && r === 11;
+        if (crackA || bridgeA || crackB || bridgeB) return false;
+        if ((r === 5 || r === 6) && c >= 1 && c <= 30) return true;
+        if (r === 11 && c >= 1 && c <= 30) return true;
+        return false;
+      },
+      path(c, r) {
+        if (r === 3 || r === 8 || r === 14) return true;
+        if (c === 20 && r !== 5 && r !== 6 && r !== 11) return true;
+        if ((r === 5 || r === 6) && c >= 15 && c <= 17) return true;
+        if (r === 11 && c >= 9 && c <= 11) return true;
+        return false;
+      },
+      houses: [],
+      trees: [],
+      cacti: [],
+      camels: [],
+      tents: [],
+      monsters: [
+        [2, 3], [14, 2], [22, 2], [29, 4],
+        [2, 8], [10, 8], [18, 9], [28, 8],
+        [3, 14], [12, 14], [22, 15], [29, 13],
+      ],
+      coins: [[3, 8], [12, 3], [28, 3], [8, 9], [22, 8], [4, 14], [14, 14], [27, 15]],
+      spawns: [[28, 8], [3, 14], [12, 8], [22, 14], [8, 2], [29, 9], [4, 9], [16, 14], [24, 8]],
+      humanStart: [3, 14],
+      tornadoStart: [28, 8],
+      cracks: [[5, 5], [5, 6], [26, 11]],
+      doors: [[16, 5], [16, 6], [10, 11]],
     },
   ];
 
@@ -562,6 +648,24 @@
       if (circleHitsRect(x, y, radius + extra, rect.x, rect.y, rect.w, rect.h)) hit.push(p);
     }
     return hit;
+  }
+
+  function gapTooNarrow(x, y) {
+    return !circleHitsMountain(x, y, CONFIG.humanRadius) && circleHitsMountain(x, y, CONFIG.tornadoRadius);
+  }
+
+  function pushingIntoCrack() {
+    if (!tornado || tornado.hopping) return false;
+    const dir = normalize(tornado.dx, tornado.dy);
+    if (!dir.x && !dir.y) return false;
+    for (const dist of [8, 14, 20]) {
+      if (gapTooNarrow(tornado.x + dir.x * dist, tornado.y + dir.y * dist)) return true;
+    }
+    return false;
+  }
+
+  function sfxNarrow() {
+    tone(196, 0.09, "triangle", 0.045);
   }
 
   function blocked(x, y, radius) {
@@ -708,7 +812,7 @@
   function makeTornado(x, y) {
     return {
       x, y, vx: 0, vy: 0, dx: -1, dy: 0,
-      hopping: false, hopT: 0, hopCool: 0.4, shotCool: 1.1,
+      hopping: false, hopT: 0, hopCool: 0.4, shotCool: 1.1, sad: 0,
     };
   }
 
@@ -760,6 +864,12 @@
 
   function selfCheck() {
     const prev = settings.map;
+    const problems = [];
+    const note = (...args) => {
+      const text = args.map((part) => typeof part === "string" ? part : JSON.stringify(part)).join(" ");
+      problems.push(text);
+      console.warn(...args);
+    };
     for (const map of MAPS) {
       settings.map = map.id;
       for (const [c, r] of map.cracks) {
@@ -768,14 +878,14 @@
         const humanOk = !circleHitsMountain(x, y, CONFIG.humanRadius);
         const tornadoBlocked = circleHitsMountain(x, y, CONFIG.tornadoRadius);
         if (!humanOk || !tornadoBlocked) {
-          console.warn("Sprickan fungerar inte som tänkt", map.id, c, r, { humanOk, tornadoBlocked });
+          note("Sprickan fungerar inte som tänkt", map.id, c, r, { humanOk, tornadoBlocked });
         }
       }
       for (const [c, r] of map.doors) {
         const x = (c + 0.5) * TILE;
         const y = (r + 0.5) * TILE;
         if (circleHitsMountain(x, y, CONFIG.tornadoRadius)) {
-          console.warn("Dörren är för trång", map.id, c, r);
+          note("Dörren är för trång", map.id, c, r);
         }
       }
       const seen = new Uint8Array(COLS * ROWS);
@@ -797,20 +907,21 @@
       }
       buildProps();
       buildCoins();
-      if (coins.length < CONFIG.coinTarget) console.warn("För få mynt", map.id, coins.length);
+      if (coins.length < CONFIG.coinTarget) note("För få mynt", map.id, coins.length);
       for (const coin of coins) {
         const c = Math.floor(coin.x / TILE);
         const r = Math.floor(coin.y / TILE);
-        if (!seen[r * COLS + c]) console.warn("Myntet går inte att nå", map.id, c, r);
+        if (!seen[r * COLS + c]) note("Myntet går inte att nå", map.id, c, r);
       }
       if (!tileStandable(map.humanStart[0], map.humanStart[1], CONFIG.humanRadius)) {
-        console.warn("Människan fastnar vid start", map.id);
+        note("Människan fastnar vid start", map.id);
       }
       if (!tileStandable(map.tornadoStart[0], map.tornadoStart[1], CONFIG.tornadoRadius)) {
-        console.warn("Tornadon fastnar vid start", map.id);
+        note("Tornadon fastnar vid start", map.id);
       }
     }
     settings.map = prev;
+    return problems;
   }
 
   const PAD_DASH = [0];
@@ -2333,7 +2444,14 @@
       }
       tossTornadoCoins();
       stirGround();
+      const along = (tornado.x - beforeTX) * tx + (tornado.y - beforeTY) * ty;
+      const wanted = Math.hypot(tx, ty) * speed * dt;
+      if (wanted > 0.35 && along < wanted * 0.4 && pushingIntoCrack()) {
+        if (tornado.sad <= 0) sfxNarrow();
+        tornado.sad = 0.9;
+      }
     }
+    if (tornado.sad > 0) tornado.sad -= dt;
 
     updateWake(dt);
     updateFlyingCoins(dt);
@@ -2737,13 +2855,53 @@
     px(x - 3 + lx, faceY + ly, 2, 2, "#2c3148");
     px(x + 3 + lx, faceY + ly, 2, 2, "#2c3148");
     px(x - 3 + lx, faceY + ly, 1, 1, "#ffffff");
-    px(x - 3, faceY + 3, 1, 1, "#ffb4c4");
-    px(x + 3, faceY + 3, 1, 1, "#ffb4c4");
-    px(x - 2, faceY + 4, 1, 1, "#3a4258");
-    px(x - 1, faceY + 5, 1, 1, "#3a4258");
-    px(x, faceY + 5, 1, 1, "#3a4258");
-    px(x + 1, faceY + 5, 1, 1, "#3a4258");
-    px(x + 2, faceY + 4, 1, 1, "#3a4258");
+    const sad = tornado.sad > 0;
+    if (sad) {
+      px(x - 5, faceY - 4, 3, 1, "#3a4258");
+      px(x + 3, faceY - 4, 3, 1, "#3a4258");
+      px(x - 2, faceY + 6, 1, 1, "#3a4258");
+      px(x - 1, faceY + 5, 1, 1, "#3a4258");
+      px(x, faceY + 5, 1, 1, "#3a4258");
+      px(x + 1, faceY + 5, 1, 1, "#3a4258");
+      px(x + 2, faceY + 6, 1, 1, "#3a4258");
+      px(x + 5, faceY + 1, 2, 2, "#7eb6ff");
+    } else {
+      px(x - 3, faceY + 3, 1, 1, "#ffb4c4");
+      px(x + 3, faceY + 3, 1, 1, "#ffb4c4");
+      px(x - 2, faceY + 4, 1, 1, "#3a4258");
+      px(x - 1, faceY + 5, 1, 1, "#3a4258");
+      px(x, faceY + 5, 1, 1, "#3a4258");
+      px(x + 1, faceY + 5, 1, 1, "#3a4258");
+      px(x + 2, faceY + 4, 1, 1, "#3a4258");
+    }
+    if (sad) drawNarrowBubble(x, faceY - 16);
+  }
+
+  function drawNarrowBubble(x, y) {
+    const text = "För smalt";
+    ctx.save();
+    ctx.font = "800 8px 'Avenir Next Rounded', 'Avenir Next', sans-serif";
+    const w = Math.ceil(ctx.measureText(text).width) + 8;
+    const left = Math.round(x - w / 2);
+    const top = Math.round(y - 12);
+    px(left, top, w, 12, "#3a2f2a");
+    px(left + 1, top + 1, w - 2, 10, "#fff8ee");
+    ctx.fillStyle = "#3a2f2a";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, Math.round(x), top + 6);
+    ctx.restore();
+  }
+
+  function drawCrackMarks() {
+    for (const [c, r] of currentMap().cracks) {
+      const x = c * TILE;
+      const y = r * TILE;
+      px(x + 1, y + 3, 3, 10, "#3a2f2a");
+      px(x + 12, y + 3, 3, 10, "#3a2f2a");
+      px(x + 1, y + 3, 3, 2, "#fff6e0");
+      px(x + 12, y + 3, 3, 2, "#fff6e0");
+    }
   }
 
   function drawHumanAt(x, y, frame, flip, outline, rot) {
@@ -2967,6 +3125,7 @@
         px(d.x - 2, d.y + 2, 3, 2, "#c4814a");
       }
     }
+    drawCrackMarks();
   }
 
   function drawPropSprite(p) {
@@ -3284,6 +3443,7 @@
   function goMenu() {
     mode = "menu";
     vsAI = false;
+    hideControlPick();
     resetMatch();
   }
 
@@ -3525,9 +3685,41 @@
     stick.addEventListener("pointercancel", end);
   }
 
+  let pendingAiRole = null;
+
+  function showControlPick(role) {
+    pendingAiRole = role;
+    const row = document.getElementById("ai-row");
+    const pick = document.getElementById("control-pick");
+    const ask = document.getElementById("control-ask");
+    const note = document.getElementById("control-touch");
+    if (row) row.hidden = true;
+    if (pick) pick.hidden = false;
+    if (ask) ask.textContent = role === "tornado" ? "Du är tornadon. Hur styr du?" : "Du är människan. Hur styr du?";
+    if (note) note.hidden = !document.body.classList.contains("touch");
+  }
+
+  function hideControlPick() {
+    pendingAiRole = null;
+    const row = document.getElementById("ai-row");
+    const pick = document.getElementById("control-pick");
+    if (row) row.hidden = false;
+    if (pick) pick.hidden = true;
+  }
+
+  function pickAiControl(kind) {
+    const role = pendingAiRole === "tornado" ? "tornado" : "human";
+    chooseControl(role === "human" ? "humanControl" : "tornadoControl", kind === "pad" ? "pad" : "keys");
+    hideControlPick();
+    startMatch(true, role);
+  }
+
   document.getElementById("btn-together").addEventListener("click", () => startMatch(false));
-  document.getElementById("btn-ai-human").addEventListener("click", () => startMatch(true, "human"));
-  document.getElementById("btn-ai-tornado").addEventListener("click", () => startMatch(true, "tornado"));
+  document.getElementById("btn-ai-human").addEventListener("click", () => showControlPick("human"));
+  document.getElementById("btn-ai-tornado").addEventListener("click", () => showControlPick("tornado"));
+  document.getElementById("btn-pick-keys").addEventListener("click", () => pickAiControl("keys"));
+  document.getElementById("btn-pick-pad").addEventListener("click", () => pickAiControl("pad"));
+  document.getElementById("btn-control-back").addEventListener("click", hideControlPick);
   document.getElementById("btn-again").addEventListener("click", () => startMatch(vsAI));
   document.getElementById("btn-menu").addEventListener("click", goMenu);
   document.getElementById("btn-pause-menu").addEventListener("click", goMenu);
@@ -3614,6 +3806,7 @@
       blocked,
       isMountain,
       fit: () => tornadoFit,
+      check: selfCheck,
       catchHuman,
       fireShot,
       scatterCoins,

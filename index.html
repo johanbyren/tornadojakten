@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Tornadojakten</title>
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
   <div class="sky" aria-hidden="true">
@@ -69,9 +69,18 @@
         <button type="button" class="play" id="btn-together">Spela tillsammans</button>
       </div>
       <p class="map-label">Mot datorn</p>
-      <div class="actions duo">
+      <div class="actions duo" id="ai-row">
         <button type="button" class="play" id="btn-ai-human">Jag är människan</button>
         <button type="button" class="play" id="btn-ai-tornado">Jag är tornadon</button>
+      </div>
+      <div id="control-pick" hidden>
+        <p class="map-label" id="control-ask">Hur styr du?</p>
+        <div class="actions duo">
+          <button type="button" class="play" id="btn-pick-keys">Tangentbord</button>
+          <button type="button" class="play" id="btn-pick-pad">Dosa</button>
+        </div>
+        <p id="control-touch" class="map-hint" hidden>På paddan fungerar cirkeln också.</p>
+        <button type="button" class="back-link" id="btn-control-back">Tillbaka</button>
       </div>
 
       <div class="menu-block">
@@ -160,6 +169,6 @@
     </div>
   </div>
 
-  <script src="game.js?v=4"></script>
+  <script src="game.js?v=8"></script>
 </body>
 </html>
