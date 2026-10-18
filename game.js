@@ -154,6 +154,8 @@
   const padCache = new Map();
   let padsThisFrame = [];
   const heldTouch = new Set();
+  const stickVec = { human: { x: 0, y: 0 }, tornado: { x: 0, y: 0 } };
+  const stickHeld = { human: 0, tornado: 0 };
   let padBindFrame = false;
   let countN = 3;
   let countBeatAt = 0;
@@ -246,21 +248,6 @@
     return document.body.classList.contains("touch") && playerDrives(role) && mode !== "menu" && mode !== "ended";
   }
 
-  function touchVector(role) {
-    const root = document.querySelector(role === "human" ? "#touch .left" : "#touch .right");
-    if (!root) return { x: 0, y: 0 };
-    let x = 0;
-    let y = 0;
-    for (const button of root.querySelectorAll("[data-move]")) {
-      if (!heldTouch.has(button)) continue;
-      if (button.dataset.move === "u") y -= 1;
-      if (button.dataset.move === "d") y += 1;
-      if (button.dataset.move === "l") x -= 1;
-      if (button.dataset.move === "r") x += 1;
-    }
-    return normalize(x, y);
-  }
-
   function touchDown(act) {
     for (const button of heldTouch) {
       if (button.dataset.act === act) return true;
@@ -300,7 +287,7 @@
     {
       id: "dalen",
       name: "Dalen",
-      hint: "En ås med smala springor, och en gömma längst ner.",
+      hint: "Smala springor och en gömma.",
       solid(c, r) {
         if (r === 7 && c >= 1 && c <= 22 && c !== 8 && c !== 15) return true;
         if (c >= 1 && c <= 8 && r >= 11 && r <= 15) {
@@ -337,7 +324,7 @@
     {
       id: "korsningen",
       name: "Korsningen",
-      hint: "Ett kors av berg. Springorna är genvägar, portarna är breda.",
+      hint: "Berg i kors. Springorna är genvägar.",
       solid(c, r) {
         const horiz = r === 8 && c >= 1 && c <= 30 && c !== 5 && c !== 27 && !(c >= 11 && c <= 13);
         const vert = c === 16 && r >= 1 && r <= 16 && r !== 3 && r !== 8 && !(r >= 13 && r <= 15);
@@ -368,7 +355,7 @@
     {
       id: "fickorna",
       name: "Fickorna",
-      hint: "Två gömmor med smala dörrar. Tornadon får gå runt.",
+      hint: "Två gömmor. Tornadon får gå runt.",
       solid(c, r) {
         const inLeft = c >= 1 && c <= 7 && r >= 2 && r <= 8;
         const leftInside = c >= 2 && c <= 6 && r >= 3 && r <= 7;
@@ -406,7 +393,7 @@
     {
       id: "broarna",
       name: "Broarna",
-      hint: "Två bergsväggar. Broarna är breda, springorna är smala.",
+      hint: "Breda broar och smala springor.",
       solid(c, r) {
         const upperCrack = c === 9 && (r === 5 || r === 6);
         const upperDoor = c >= 20 && c <= 22 && (r === 5 || r === 6);
@@ -443,7 +430,7 @@
     {
       id: "oknen",
       name: "Öknen",
-      hint: "Sanddyner, kaktusar, kameler och tält. En oas med vatten.",
+      hint: "Sand, kameler och en oas.",
       theme: "desert",
       solid(c, r) {
         if (r === 8 && c >= 1 && c <= 30 && c !== 6 && c !== 24 && !(c >= 14 && c <= 16)) return true;
@@ -481,7 +468,7 @@
     {
       id: "vulkanen",
       name: "Vulkanen",
-      hint: "Vulkaner och lava. Springan är smal, stenbron är bred.",
+      hint: "Lava, en smal springa och en stenbro.",
       theme: "volcano",
       solid(c, r) {
         if (inEllipse(c, r, 8, 3.2, 2.6, 1.7)) return true;
@@ -1582,10 +1569,7 @@
   }
 
   function controlWish(role) {
-    if (usesTouch(role)) {
-      const touch = touchVector(role);
-      if (touch.x || touch.y) return touch;
-    }
+    if (usesTouch(role) && stickHeld[role] > 0) return stickVec[role];
     if (role === "human") {
       return settings.humanControl === "pad" ? padMove(padBind.human) : keyboardMove(settings.humanKeys);
     }
@@ -2192,9 +2176,10 @@
     if (human.state === "run") {
       const wish = computerHuman() ? aiHumanWish(dt) : controlWish("human");
       if (wish.x !== 0 || wish.y !== 0) {
-        human.dx = wish.x;
-        human.dy = wish.y;
-        human.flip = wish.x < 0;
+        const face = normalize(wish.x, wish.y);
+        human.dx = face.x;
+        human.dy = face.y;
+        human.flip = face.x < 0;
       }
       const dashEdge = computerHuman() ? aiHumanShouldDash() : readDash();
       if (dashEdge && human.charges > 0 && !human.dashing) {
@@ -2294,8 +2279,9 @@
       ty = wish.y;
     }
     if (tx !== 0 || ty !== 0) {
-      tornado.dx = tx;
-      tornado.dy = ty;
+      const face = normalize(tx, ty);
+      tornado.dx = face.x;
+      tornado.dy = face.y;
     }
     const hopEdge = readHop();
     const shotEdge = readShot();
@@ -3166,7 +3152,7 @@
     if (el.helpHuman) {
       if (computerHuman()) el.helpHuman.innerHTML = "<b>Människan</b> datorn";
       else if (document.body.classList.contains("touch") && playerDrives("human") && mode !== "menu") {
-        el.helpHuman.innerHTML = "<b>Människan</b> pilarna på skärmen · rusa";
+        el.helpHuman.innerHTML = "<b>Människan</b> dra i cirkeln · rusa";
       } else {
         el.helpHuman.innerHTML = settings.humanControl === "pad"
           ? "<b>Människan</b> spak eller styrkors · rusa <kbd>A</kbd>"
@@ -3176,7 +3162,7 @@
     if (el.helpTornado) {
       if (computerTornado()) el.helpTornado.innerHTML = "<b>Tornadon</b> datorn";
       else if (document.body.classList.contains("touch") && playerDrives("tornado") && mode !== "menu") {
-        el.helpTornado.innerHTML = "<b>Tornadon</b> pilarna på skärmen · hoppa · skjut";
+        el.helpTornado.innerHTML = "<b>Tornadon</b> dra i cirkeln · hoppa · skjut";
       } else {
         el.helpTornado.innerHTML = settings.tornadoControl === "pad"
           ? "<b>Tornadon</b> spak eller styrkors · hoppa <kbd>A</kbd> · skjut <kbd>X</kbd>"
@@ -3210,16 +3196,27 @@
   }
 
   function fit() {
-    const maxW = window.innerWidth - 28;
-    const maxH = window.innerHeight - 168;
-    let scale = Math.floor(Math.min(maxW / canvas.width, maxH / canvas.height));
-    if (scale < 1) scale = 1;
-    if (scale > 4) scale = 4;
-    canvas.style.width = canvas.width * scale + "px";
-    canvas.style.height = canvas.height * scale + "px";
+    const touch = document.body.classList.contains("touch");
+    const maxW = window.innerWidth - (touch ? 0 : 28);
+    const maxH = window.innerHeight - (touch ? 0 : 168);
+    let scale = Math.min(maxW / canvas.width, maxH / canvas.height);
+    if (!touch) {
+      scale = Math.floor(scale);
+      if (scale > 4) scale = 4;
+      if (scale < 1) scale = 1;
+    } else {
+      const crisp = Math.floor(scale);
+      const wideEnough = crisp * canvas.width >= maxW * 0.86;
+      const tallEnough = crisp * canvas.height >= maxH * 0.78;
+      if (crisp >= 1 && wideEnough && tallEnough) scale = crisp;
+      if (scale > 3) scale = 3;
+      if (scale < 1) scale = Math.max(0.65, scale);
+    }
+    canvas.style.width = Math.round(canvas.width * scale) + "px";
+    canvas.style.height = Math.round(canvas.height * scale) + "px";
     const width = canvas.style.width;
-    el.hud.style.width = width;
-    el.help.style.width = width;
+    el.hud.style.width = touch ? "" : width;
+    el.help.style.width = touch ? "" : width;
   }
 
   function keysMarkup(layout, role) {
@@ -3253,20 +3250,14 @@
     if (left) left.hidden = !showHuman;
     if (right) right.hidden = !showTornado;
     document.body.classList.toggle("solo-touch", live && showHuman !== showTornado);
+    if (!live) resetSticks();
     const clusters = [
-      ["left", settings.humanKeys, settings.humanKeys === "arrows" ? "Space" : "KeyF"],
-      ["right", settings.tornadoKeys, tornadoEasyKeys() ? "Space" : (settings.tornadoKeys === "wasd" ? "KeyF" : "ShiftRight")],
+      ["left", settings.humanKeys === "arrows" ? "Space" : "KeyF"],
+      ["right", tornadoEasyKeys() ? "Space" : (settings.tornadoKeys === "wasd" ? "KeyF" : "ShiftRight")],
     ];
-    for (const [side, layout, action] of clusters) {
+    for (const [side, action] of clusters) {
       const root = document.querySelector("#touch ." + side);
       if (!root) continue;
-      const codes = layout === "arrows"
-        ? { u: "ArrowUp", l: "ArrowLeft", d: "ArrowDown", r: "ArrowRight" }
-        : { u: "KeyW", l: "KeyA", d: "KeyS", r: "KeyD" };
-      for (const [cls, code] of Object.entries(codes)) {
-        const button = root.querySelector("." + cls);
-        if (button) button.dataset.k = code;
-      }
       const dash = root.querySelector(".dash");
       if (dash) dash.dataset.k = action;
       const shoot = root.querySelector(".shoot");
@@ -3470,6 +3461,70 @@
     button.addEventListener("pointercancel", up);
   }
 
+  function resetSticks() {
+    stickVec.human.x = 0;
+    stickVec.human.y = 0;
+    stickVec.tornado.x = 0;
+    stickVec.tornado.y = 0;
+    stickHeld.human = 0;
+    stickHeld.tornado = 0;
+    for (const knob of document.querySelectorAll("#touch .knob")) {
+      knob.style.transform = "translate(-50%, -50%)";
+    }
+  }
+
+  function bindStick(stick) {
+    const role = stick.dataset.role === "tornado" ? "tornado" : "human";
+    const knob = stick.querySelector(".knob");
+    const pointers = new Set();
+    const place = (clientX, clientY) => {
+      const rect = stick.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const radius = rect.width / 2 || 1;
+      const dx = clientX - cx;
+      const dy = clientY - cy;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = dx / len;
+      const ny = dy / len;
+      const travel = Math.min(len, radius * 0.58);
+      const mag = Math.min(1, len / radius);
+      const dead = 0.16;
+      if (knob) knob.style.transform = "translate(-50%, -50%) translate(" + (nx * travel) + "px, " + (ny * travel) + "px)";
+      if (mag < dead) {
+        stickVec[role].x = 0;
+        stickVec[role].y = 0;
+      } else {
+        const strength = (mag - dead) / (1 - dead);
+        stickVec[role].x = nx * strength;
+        stickVec[role].y = ny * strength;
+      }
+    };
+    const end = (e) => {
+      pointers.delete(e.pointerId);
+      stickHeld[role] = pointers.size;
+      if (pointers.size === 0) {
+        stickVec[role].x = 0;
+        stickVec[role].y = 0;
+        if (knob) knob.style.transform = "translate(-50%, -50%)";
+      }
+    };
+    stick.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      pointers.add(e.pointerId);
+      stickHeld[role] = pointers.size;
+      place(e.clientX, e.clientY);
+      try { stick.setPointerCapture(e.pointerId); } catch (err) { /* pekaren kan redan vara släppt */ }
+    });
+    stick.addEventListener("pointermove", (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      e.preventDefault();
+      place(e.clientX, e.clientY);
+    });
+    stick.addEventListener("pointerup", end);
+    stick.addEventListener("pointercancel", end);
+  }
+
   document.getElementById("btn-together").addEventListener("click", () => startMatch(false));
   document.getElementById("btn-ai-human").addEventListener("click", () => startMatch(true, "human"));
   document.getElementById("btn-ai-tornado").addEventListener("click", () => startMatch(true, "tornado"));
@@ -3502,6 +3557,7 @@
     saveSettings();
   });
   for (const button of document.querySelectorAll("#touch button")) bindHold(button);
+  for (const stick of document.querySelectorAll("#touch .stick")) bindStick(stick);
 
   window.addEventListener("keydown", (e) => {
     if (mode === "menu" || mode === "ended") return;

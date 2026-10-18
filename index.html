@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Tornadojakten</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
   <div class="sky" aria-hidden="true">
@@ -53,60 +53,66 @@
     </div>
 
     <footer id="help">
-      <span id="help-human"><b>Människan</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · rusa <kbd>Shift</kbd> vänster eller <kbd>F</kbd></span>
-      <span id="help-tornado"><b>Tornadon</b> <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> · hoppa <kbd>Shift</kbd> höger · skjut <kbd>mellanslag</kbd></span>
-      <span><kbd>Esc</kbd> paus · <button type="button" id="sound-btn">Ljud på</button></span>
+      <span id="help-human" class="help-keys"><b>Människan</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · rusa <kbd>Shift</kbd> vänster eller <kbd>F</kbd></span>
+      <span id="help-tornado" class="help-keys"><b>Tornadon</b> <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> · hoppa <kbd>Shift</kbd> höger · skjut <kbd>mellanslag</kbd></span>
+      <span class="help-keys"><kbd>Esc</kbd> paus</span>
+      <button type="button" id="sound-btn">Ljud på</button>
     </footer>
   </div>
 
   <div id="menu" class="sheet">
     <div class="card">
-      <p class="eyebrow">Lokalt · två spelare · samma dator</p>
       <h1>Tornadojakten</h1>
-      <p class="lede">Ta alla mynt. Tre fångster så vinner tornadon.</p>
-      <p class="map-label">Karta</p>
-      <div class="maps" id="map-picks" role="group" aria-label="Karta"></div>
-      <p id="map-hint" class="map-hint"></p>
-      <p class="map-label">Styrning</p>
-      <div class="setting">
-        <span>Människan</span>
-        <div class="winds" id="human-control" role="group" aria-label="Människans styrning">
-          <button type="button" data-control="keys">Tangentbord</button>
-          <button type="button" data-control="pad">Handkontroll</button>
-        </div>
-      </div>
-      <div class="setting keys-pick" id="human-keys-row">
-        <span>Tangenter</span>
-        <div class="winds" id="human-keys" role="group" aria-label="Människans tangenter">
-          <button type="button" data-keys="wasd">W A S D</button>
-          <button type="button" data-keys="arrows">Pilar</button>
-        </div>
-      </div>
-      <div class="setting">
-        <span>Tornadon</span>
-        <div class="winds" id="tornado-control" role="group" aria-label="Tornadons styrning">
-          <button type="button" data-control="keys">Tangentbord</button>
-          <button type="button" data-control="pad">Handkontroll</button>
-        </div>
-      </div>
-      <div class="setting keys-pick" id="tornado-keys-row">
-        <span>Tangenter</span>
-        <div class="winds" id="tornado-keys" role="group" aria-label="Tornadons tangenter">
-          <button type="button" data-keys="wasd">W A S D</button>
-          <button type="button" data-keys="arrows">Pilar</button>
-        </div>
-      </div>
-      <p id="pad-note" class="map-hint" hidden></p>
+      <p class="lede">Samla alla mynt. Tornadon vinner om den fångar dig.</p>
+
       <div class="actions">
         <button type="button" class="play" id="btn-together">Spela tillsammans</button>
       </div>
       <p class="map-label">Mot datorn</p>
       <div class="actions duo">
-        <button type="button" class="play secondary" id="btn-ai-human">Jag är människan</button>
-        <button type="button" class="play secondary" id="btn-ai-tornado">Jag är tornadon</button>
+        <button type="button" class="play" id="btn-ai-human">Jag är människan</button>
+        <button type="button" class="play" id="btn-ai-tornado">Jag är tornadon</button>
       </div>
+
+      <div class="menu-block">
+        <p class="map-label">Karta</p>
+        <div class="maps" id="map-picks" role="group" aria-label="Karta"></div>
+        <p id="map-hint" class="map-hint"></p>
+      </div>
+
       <details id="settings">
-        <summary>Inställningar</summary>
+        <summary>Mer</summary>
+        <div class="desk-only">
+          <div class="setting">
+            <span>Människan</span>
+            <div class="winds" id="human-control" role="group" aria-label="Människans styrning">
+              <button type="button" data-control="keys">Tangentbord</button>
+              <button type="button" data-control="pad">Handkontroll</button>
+            </div>
+          </div>
+          <div class="setting keys-pick" id="human-keys-row">
+            <span>Tangenter</span>
+            <div class="winds" id="human-keys" role="group" aria-label="Människans tangenter">
+              <button type="button" data-keys="wasd">W A S D</button>
+              <button type="button" data-keys="arrows">Pilar</button>
+            </div>
+          </div>
+          <div class="setting">
+            <span>Tornadon</span>
+            <div class="winds" id="tornado-control" role="group" aria-label="Tornadons styrning">
+              <button type="button" data-control="keys">Tangentbord</button>
+              <button type="button" data-control="pad">Handkontroll</button>
+            </div>
+          </div>
+          <div class="setting keys-pick" id="tornado-keys-row">
+            <span>Tangenter</span>
+            <div class="winds" id="tornado-keys" role="group" aria-label="Tornadons tangenter">
+              <button type="button" data-keys="wasd">W A S D</button>
+              <button type="button" data-keys="arrows">Pilar</button>
+            </div>
+          </div>
+        </div>
+        <p id="pad-note" class="map-hint" hidden></p>
         <div class="setting">
           <span>Fångster</span>
           <div class="stepper">
@@ -140,22 +146,20 @@
 
   <div id="touch" aria-hidden="true">
     <div class="cluster left">
-      <button type="button" data-k="KeyW" data-move="u" class="u">▲</button>
-      <button type="button" data-k="KeyA" data-move="l" class="l">◀</button>
-      <button type="button" data-k="KeyS" data-move="d" class="d">▼</button>
-      <button type="button" data-k="KeyD" data-move="r" class="r">▶</button>
+      <div class="stick" data-role="human" aria-label="Styr människan">
+        <div class="knob"></div>
+      </div>
       <button type="button" data-k="KeyF" data-act="dash" class="dash">Rusa</button>
     </div>
     <div class="cluster right">
-      <button type="button" data-k="ArrowUp" data-move="u" class="u">▲</button>
-      <button type="button" data-k="ArrowLeft" data-move="l" class="l">◀</button>
-      <button type="button" data-k="ArrowDown" data-move="d" class="d">▼</button>
-      <button type="button" data-k="ArrowRight" data-move="r" class="r">▶</button>
+      <div class="stick" data-role="tornado" aria-label="Styr tornadon">
+        <div class="knob"></div>
+      </div>
       <button type="button" data-k="ShiftRight" data-act="hop" class="dash">Hopp</button>
       <button type="button" data-k="Space" data-act="shoot" class="shoot">Skjut</button>
     </div>
   </div>
 
-  <script src="game.js"></script>
+  <script src="game.js?v=3"></script>
 </body>
 </html>
