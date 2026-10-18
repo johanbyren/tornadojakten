@@ -364,6 +364,8 @@ h1 { font-size: 2.2rem; }
 }
 
 .actions { display: grid; gap: 8px; }
+.actions.duo { grid-template-columns: 1fr 1fr; }
+.actions.duo .play { font-size: 1rem; }
 
 .play {
   font-size: 1.12rem;
@@ -415,11 +417,20 @@ summary { cursor: pointer; font-weight: 800; }
 #touch { display: none; }
 
 body.touch #touch { display: block; }
+#touch[hidden] { display: none !important; }
+.cluster[hidden] { display: none !important; }
+
+body.solo-touch .cluster {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom));
+}
 
 .cluster {
   position: fixed;
   z-index: 8;
-  bottom: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
   width: 168px;
   height: 168px;
   display: grid;

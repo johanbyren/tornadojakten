@@ -42,7 +42,7 @@
   const WORLD_W = COLS * TILE;
   const WORLD_H = ROWS * TILE;
   const SKY = 48;
-  const MAP_IDS = ["dalen", "korsningen", "fickorna", "broarna"];
+  const MAP_IDS = ["dalen", "korsningen", "fickorna", "broarna", "oknen", "vulkanen"];
 
   const params = new URLSearchParams(location.search);
   const DEBUG = params.has("debug");
@@ -144,9 +144,10 @@
   let shots = [];
   let shotHeld = false;
   const padBind = { human: null, tornado: null };
-  const padHeld = { dash: false, hop: false, shot: false, start: false };
+  const padHeld = { dash: false, hop: false, shot: false, start: false, touchDash: false, touchHop: false, touchShoot: false };
   const padCache = new Map();
   let padsThisFrame = [];
+  const heldTouch = new Set();
   let padBindFrame = false;
   let countN = 3;
   let countBeatAt = 0;
@@ -177,6 +178,7 @@
       lives: 3, wind: "lagom", sound: true, map: "dalen",
       humanControl: "keys", tornadoControl: "keys",
       humanKeys: "wasd", tornadoKeys: "arrows",
+      aiRole: "human",
     };
     try {
       const raw = localStorage.getItem("tornadojakten");
@@ -198,6 +200,7 @@
         tornadoControl,
         humanKeys,
         tornadoKeys,
+        aiRole: saved.aiRole === "tornado" ? "tornado" : "human",
       };
     } catch (err) {
       return fallback;
@@ -216,8 +219,55 @@
 
   function tornadoSpeed() {
     const base = CONFIG.humanSpeed * windMult();
-    if (vsAI) return base * (settings.wind === "vild" ? 0.94 : 0.9);
+    if (computerTornado()) return base * (settings.wind === "vild" ? 0.94 : 0.9);
     return base;
+  }
+
+  function playerDrives(role) {
+    if (!vsAI) return true;
+    return settings.aiRole === role;
+  }
+
+  function computerHuman() {
+    return vsAI && settings.aiRole === "tornado";
+  }
+
+  function computerTornado() {
+    return vsAI && settings.aiRole !== "tornado";
+  }
+
+  function usesTouch(role) {
+    return document.body.classList.contains("touch") && playerDrives(role) && mode !== "menu" && mode !== "ended";
+  }
+
+  function touchVector(role) {
+    const root = document.querySelector(role === "human" ? "#touch .left" : "#touch .right");
+    if (!root) return { x: 0, y: 0 };
+    let x = 0;
+    let y = 0;
+    for (const button of root.querySelectorAll("[data-move]")) {
+      if (!heldTouch.has(button)) continue;
+      if (button.dataset.move === "u") y -= 1;
+      if (button.dataset.move === "d") y += 1;
+      if (button.dataset.move === "l") x -= 1;
+      if (button.dataset.move === "r") x += 1;
+    }
+    return normalize(x, y);
+  }
+
+  function touchDown(act) {
+    for (const button of heldTouch) {
+      if (button.dataset.act === act) return true;
+    }
+    return false;
+  }
+
+  function consumeTouch(act, heldKey) {
+    const down = touchDown(act);
+    if (!down && !padHeld[heldKey]) return null;
+    const edge = down && !padHeld[heldKey];
+    padHeld[heldKey] = down;
+    return edge;
   }
 
   function currentMap() {
@@ -912,8 +962,8 @@
     padsThisFrame = snapshotPads();
     for (const cached of padCache.values()) cached.age += dt;
     for (const pad of padsThisFrame) rememberPad(pad);
-    const wantHuman = settings.humanControl === "pad";
-    const wantTornado = settings.tornadoControl === "pad" && !vsAI;
+    const wantHuman = settings.humanControl === "pad" && playerDrives("human");
+    const wantTornado = settings.tornadoControl === "pad" && playerDrives("tornado");
     if (!wantHuman) padBind.human = null;
     if (!wantTornado) padBind.tornado = null;
     if (padBind.human != null && !gamepadAt(padBind.human)) padBind.human = null;
@@ -948,6 +998,11 @@
   }
 
   function readDash() {
+    if (computerHuman()) return false;
+    if (usesTouch("human")) {
+      const touch = consumeTouch("dash", "touchDash");
+      if (touch !== null) return touch;
+    }
     if (settings.humanControl !== "pad") return pollDash();
     const down = padBind.human != null && padPressed(gamepadAt(padBind.human), PAD_DASH);
     if (padBindFrame) {
@@ -958,7 +1013,12 @@
   }
 
   function readHop() {
-    if (vsAI || settings.tornadoControl !== "pad") return pollJump();
+    if (computerTornado()) return false;
+    if (usesTouch("tornado")) {
+      const touch = consumeTouch("hop", "touchHop");
+      if (touch !== null) return touch;
+    }
+    if (settings.tornadoControl !== "pad") return pollJump();
     const down = padBind.tornado != null && padPressed(gamepadAt(padBind.tornado), PAD_HOP);
     if (padBindFrame) {
       padHeld.hop = down;
@@ -968,7 +1028,12 @@
   }
 
   function readShot() {
-    if (vsAI || settings.tornadoControl !== "pad") return pollShot();
+    if (computerTornado()) return false;
+    if (usesTouch("tornado")) {
+      const touch = consumeTouch("shoot", "touchShoot");
+      if (touch !== null) return touch;
+    }
+    if (settings.tornadoControl !== "pad") return pollShot();
     const down = padBind.tornado != null && padPressed(gamepadAt(padBind.tornado), PAD_SHOOT);
     if (padBindFrame) {
       padHeld.shot = down;
@@ -989,10 +1054,10 @@
 
   function padWaitingText() {
     const lines = [];
-    if (settings.humanControl === "pad" && padBind.human == null) {
+    if (playerDrives("human") && settings.humanControl === "pad" && padBind.human == null) {
       lines.push("Människan: tryck en knapp på handkontrollen");
     }
-    if (!vsAI && settings.tornadoControl === "pad" && padBind.tornado == null) {
+    if (playerDrives("tornado") && settings.tornadoControl === "pad" && padBind.tornado == null) {
       lines.push(padBind.human == null
         ? "Tornadon: tryck sen en knapp på den andra"
         : "Tornadon: tryck en knapp på den andra handkontrollen");
@@ -1165,6 +1230,62 @@
     }
     const next = aiPath[0];
     return normalize((next.c + 0.5) * TILE - tornado.x, (next.r + 0.5) * TILE - tornado.y);
+  }
+
+  function aiHumanWish() {
+    let gx = 0;
+    let gy = 0;
+    let have = false;
+    let best = null;
+    let bestD = Infinity;
+    for (const coin of coins) {
+      if (coin.taken || coin.flying) continue;
+      const dist = Math.hypot(coin.x - human.x, coin.y - human.y);
+      if (dist < bestD) {
+        bestD = dist;
+        best = coin;
+      }
+    }
+    if (best) {
+      gx = best.x - human.x;
+      gy = best.y - human.y;
+      have = true;
+    }
+    const threat = Math.hypot(tornado.x - human.x, tornado.y - human.y);
+    if (!tornado.hopping && threat < 110) {
+      gx += (human.x - tornado.x) * 1.8;
+      gy += (human.y - tornado.y) * 1.8;
+      have = true;
+    }
+    if (!have) return { x: 0, y: 0 };
+    const direct = normalize(gx, gy);
+    const tries = [
+      direct,
+      { x: -direct.y, y: direct.x },
+      { x: direct.y, y: -direct.x },
+    ];
+    for (const dir of tries) {
+      if (!dir.x && !dir.y) continue;
+      if (blocked(human.x + dir.x * 12, human.y + dir.y * 12, CONFIG.humanRadius)) continue;
+      return dir;
+    }
+    return direct;
+  }
+
+  function aiHumanShouldDash() {
+    if (human.charges <= 0 || human.dashing || tornado.hopping) return false;
+    return Math.hypot(tornado.x - human.x, tornado.y - human.y) < 46;
+  }
+
+  function controlWish(role) {
+    if (usesTouch(role)) {
+      const touch = touchVector(role);
+      if (touch.x || touch.y) return touch;
+    }
+    if (role === "human") {
+      return settings.humanControl === "pad" ? padMove(padBind.human) : keyboardMove(settings.humanKeys);
+    }
+    return settings.tornadoControl === "pad" ? padMove(padBind.tornado) : keyboardMove(settings.tornadoKeys);
   }
 
   function aiShouldHop(dir) {
@@ -1765,21 +1886,20 @@
     }
 
     if (human.state === "run") {
-      const wish = settings.humanControl === "pad"
-        ? padMove(padBind.human)
-        : keyboardMove(settings.humanKeys);
+      const wish = computerHuman() ? aiHumanWish() : controlWish("human");
       if (wish.x !== 0 || wish.y !== 0) {
         human.dx = wish.x;
         human.dy = wish.y;
         human.flip = wish.x < 0;
       }
-      if (readDash() && human.charges > 0 && !human.dashing) {
+      const dashEdge = computerHuman() ? aiHumanShouldDash() : readDash();
+      if (dashEdge && human.charges > 0 && !human.dashing) {
         human.dashing = true;
         human.dashT = CONFIG.dashTime;
         human.charges -= 1;
         if (human.charges < CONFIG.dashCharges) human.chargeT = 0;
         sfxDash();
-      } else if (!human.dashing) {
+      } else if (!human.dashing && !computerHuman()) {
         readDash();
       }
 
@@ -1822,11 +1942,11 @@
         return;
       }
     } else if (human.state === "pull") {
-      readDash();
+      if (!computerHuman()) readDash();
       updatePull(dt);
       if (mode !== "play") return;
     } else {
-      readDash();
+      if (!computerHuman()) readDash();
       human.flyT += dt;
       if (human.flyPhase === "suck") {
         human.orbit += dt * 13;
@@ -1860,14 +1980,12 @@
 
     let tx = 0;
     let ty = 0;
-    if (vsAI && human.state === "run") {
+    if (computerTornado() && human.state === "run") {
       const wish = aiWish(dt);
       tx = wish.x;
       ty = wish.y;
-    } else if (!vsAI) {
-      const wish = settings.tornadoControl === "pad"
-        ? padMove(padBind.tornado)
-        : keyboardMove(settings.tornadoKeys);
+    } else if (playerDrives("tornado")) {
+      const wish = controlWish("tornado");
       tx = wish.x;
       ty = wish.y;
     }
@@ -1879,12 +1997,12 @@
     const shotEdge = readShot();
     if (tornado.shotCool > 0) tornado.shotCool -= dt;
     if (!tornado.hopping && tornado.hopCool <= 0) {
-      if (vsAI && human.state === "run" && aiShouldHop({ x: tx, y: ty })) startHop();
-      else if (!vsAI && hopEdge && !shotEdge) startHop();
+      if (computerTornado() && human.state === "run" && aiShouldHop({ x: tx, y: ty })) startHop();
+      else if (!computerTornado() && hopEdge && !shotEdge) startHop();
     }
     if (!tornado.hopping && tornado.shotCool <= 0) {
-      if (vsAI && aiShouldShoot()) fireShot();
-      else if (!vsAI && shotEdge) fireShot();
+      if (computerTornado() && aiShouldShoot()) fireShot();
+      else if (!computerTornado() && shotEdge) fireShot();
     }
 
     if (tornado.hopping) {
@@ -2705,6 +2823,9 @@
     el.score.textContent = score + " poäng";
     if (el.coins) el.coins.textContent = coinsGot + " mynt";
     el.modeNote.hidden = !vsAI || mode === "menu" || mode === "ended";
+    if (!el.modeNote.hidden) {
+      el.modeNote.textContent = computerHuman() ? "Datorn styr människan" : "Datorn styr tornadon";
+    }
     el.menu.hidden = mode !== "menu";
     el.end.hidden = mode !== "ended";
     el.pause.hidden = mode !== "pause";
@@ -2739,16 +2860,24 @@
       el.padBanner.textContent = waiting;
     }
     if (el.helpHuman) {
-      el.helpHuman.innerHTML = settings.humanControl === "pad"
-        ? "<b>Människan</b> spak eller styrkors · rusa <kbd>A</kbd>"
-        : keysMarkup(settings.humanKeys, "human");
+      if (computerHuman()) el.helpHuman.innerHTML = "<b>Människan</b> datorn";
+      else if (document.body.classList.contains("touch") && playerDrives("human") && mode !== "menu") {
+        el.helpHuman.innerHTML = "<b>Människan</b> pilarna på skärmen · rusa";
+      } else {
+        el.helpHuman.innerHTML = settings.humanControl === "pad"
+          ? "<b>Människan</b> spak eller styrkors · rusa <kbd>A</kbd>"
+          : keysMarkup(settings.humanKeys, "human");
+      }
     }
     if (el.helpTornado) {
-      el.helpTornado.innerHTML = vsAI
-        ? "<b>Tornadon</b> datorn"
-        : settings.tornadoControl === "pad"
+      if (computerTornado()) el.helpTornado.innerHTML = "<b>Tornadon</b> datorn";
+      else if (document.body.classList.contains("touch") && playerDrives("tornado") && mode !== "menu") {
+        el.helpTornado.innerHTML = "<b>Tornadon</b> pilarna på skärmen · hoppa · skjut";
+      } else {
+        el.helpTornado.innerHTML = settings.tornadoControl === "pad"
           ? "<b>Tornadon</b> spak eller styrkors · hoppa <kbd>A</kbd> · skjut <kbd>X</kbd>"
           : keysMarkup(settings.tornadoKeys, "tornado");
+      }
     }
     const humanKeysRow = document.getElementById("human-keys-row");
     const tornadoKeysRow = document.getElementById("tornado-keys-row");
@@ -2809,6 +2938,17 @@
   }
 
   function syncTouch() {
+    const on = document.body.classList.contains("touch");
+    const live = on && (mode === "play" || mode === "countdown" || mode === "pause");
+    const touchRoot = document.getElementById("touch");
+    if (touchRoot) touchRoot.hidden = !live;
+    const showHuman = live && playerDrives("human");
+    const showTornado = live && playerDrives("tornado");
+    const left = document.querySelector("#touch .left");
+    const right = document.querySelector("#touch .right");
+    if (left) left.hidden = !showHuman;
+    if (right) right.hidden = !showTornado;
+    document.body.classList.toggle("solo-touch", live && showHuman !== showTornado);
     const clusters = [
       ["left", settings.humanKeys, settings.humanKeys === "arrows" ? "Space" : "KeyF"],
       ["right", settings.tornadoKeys, tornadoEasyKeys() ? "Space" : (settings.tornadoKeys === "wasd" ? "KeyF" : "ShiftRight")],
@@ -2832,8 +2972,12 @@
       }
     }
   }
-  function startMatch(ai) {
-    vsAI = ai;
+  function startMatch(ai, role) {
+    vsAI = !!ai;
+    if (role === "human" || role === "tornado") {
+      settings.aiRole = role;
+      saveSettings();
+    }
     resetMatch();
     mode = "countdown";
     countN = 3;
@@ -3009,11 +3153,13 @@
     const down = (e) => {
       e.preventDefault();
       button.setPointerCapture(e.pointerId);
-      keys.add(button.dataset.k);
+      if (button.dataset.k) keys.add(button.dataset.k);
+      heldTouch.add(button);
     };
     const up = (e) => {
       e.preventDefault();
-      keys.delete(button.dataset.k);
+      if (button.dataset.k) keys.delete(button.dataset.k);
+      heldTouch.delete(button);
     };
     button.addEventListener("pointerdown", down);
     button.addEventListener("pointerup", up);
@@ -3021,7 +3167,8 @@
   }
 
   document.getElementById("btn-together").addEventListener("click", () => startMatch(false));
-  document.getElementById("btn-practice").addEventListener("click", () => startMatch(true));
+  document.getElementById("btn-ai-human").addEventListener("click", () => startMatch(true, "human"));
+  document.getElementById("btn-ai-tornado").addEventListener("click", () => startMatch(true, "tornado"));
   document.getElementById("btn-again").addEventListener("click", () => startMatch(vsAI));
   document.getElementById("btn-menu").addEventListener("click", goMenu);
   document.getElementById("btn-pause-menu").addEventListener("click", goMenu);

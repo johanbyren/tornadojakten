@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Tornadojakten</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -25,7 +25,7 @@
         <div id="timer" aria-label="Samlade mynt">0/0</div>
         <div id="coin-goal">mynt</div>
         <div id="pad-banner" hidden></div>
-        <div id="mode-note" hidden>Datorn styr tornadon</div>
+        <div id="mode-note" hidden>Datorn styr den andra</div>
       </div>
       <div class="side tornado-side">
         <span class="who">Tornadon</span>
@@ -99,7 +99,11 @@
       <p id="pad-note" class="map-hint" hidden></p>
       <div class="actions">
         <button type="button" class="play" id="btn-together">Spela tillsammans</button>
-        <button type="button" class="play secondary" id="btn-practice">Öva själv</button>
+      </div>
+      <p class="map-label">Mot datorn</p>
+      <div class="actions duo">
+        <button type="button" class="play secondary" id="btn-ai-human">Jag är människan</button>
+        <button type="button" class="play secondary" id="btn-ai-tornado">Jag är tornadon</button>
       </div>
       <details id="settings">
         <summary>Inställningar</summary>
@@ -136,19 +140,19 @@
 
   <div id="touch" aria-hidden="true">
     <div class="cluster left">
-      <button type="button" data-k="KeyW" class="u">▲</button>
-      <button type="button" data-k="KeyA" class="l">◀</button>
-      <button type="button" data-k="KeyS" class="d">▼</button>
-      <button type="button" data-k="KeyD" class="r">▶</button>
-      <button type="button" data-k="KeyF" class="dash">Rusa</button>
+      <button type="button" data-k="KeyW" data-move="u" class="u">▲</button>
+      <button type="button" data-k="KeyA" data-move="l" class="l">◀</button>
+      <button type="button" data-k="KeyS" data-move="d" class="d">▼</button>
+      <button type="button" data-k="KeyD" data-move="r" class="r">▶</button>
+      <button type="button" data-k="KeyF" data-act="dash" class="dash">Rusa</button>
     </div>
     <div class="cluster right">
-      <button type="button" data-k="ArrowUp" class="u">▲</button>
-      <button type="button" data-k="ArrowLeft" class="l">◀</button>
-      <button type="button" data-k="ArrowDown" class="d">▼</button>
-      <button type="button" data-k="ArrowRight" class="r">▶</button>
-      <button type="button" data-k="ShiftRight" class="dash">Hopp</button>
-      <button type="button" data-k="Space" class="shoot">Skjut</button>
+      <button type="button" data-k="ArrowUp" data-move="u" class="u">▲</button>
+      <button type="button" data-k="ArrowLeft" data-move="l" class="l">◀</button>
+      <button type="button" data-k="ArrowDown" data-move="d" class="d">▼</button>
+      <button type="button" data-k="ArrowRight" data-move="r" class="r">▶</button>
+      <button type="button" data-k="ShiftRight" data-act="hop" class="dash">Hopp</button>
+      <button type="button" data-k="Space" data-act="shoot" class="shoot">Skjut</button>
     </div>
   </div>
 
