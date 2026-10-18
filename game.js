@@ -3575,6 +3575,21 @@
   });
   if (matchMedia("(pointer: coarse)").matches) document.body.classList.add("touch");
 
+  let lastTap = 0;
+  document.addEventListener("touchstart", (e) => {
+    if (!document.body.classList.contains("touch")) return;
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+  document.addEventListener("touchend", (e) => {
+    if (!document.body.classList.contains("touch")) return;
+    const now = Date.now();
+    if (now - lastTap < 320) e.preventDefault();
+    lastTap = now;
+  }, { passive: false });
+  for (const name of ["gesturestart", "gesturechange", "gestureend"]) {
+    document.addEventListener(name, (e) => e.preventDefault());
+  }
+
   computeTornadoFit();
   selfCheck();
   resetMatch();
