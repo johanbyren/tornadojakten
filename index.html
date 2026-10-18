@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Tornadojakten</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="sky" aria-hidden="true">
+    <div class="sun"></div>
+    <div class="cloud c1"></div>
+    <div class="cloud c2"></div>
+    <div class="cloud c3"></div>
+  </div>
+
+  <div id="app">
+    <header id="hud">
+      <div class="side human-side">
+        <span class="who">Människan</span>
+        <span id="hearts" aria-label="Fångster kvar"></span>
+        <span id="coins">0 mynt</span>
+      </div>
+      <div class="mid">
+        <div id="timer" aria-label="Samlade mynt">0/0</div>
+        <div id="coin-goal">mynt</div>
+        <div id="pad-banner" hidden></div>
+        <div id="mode-note" hidden>Datorn styr tornadon</div>
+      </div>
+      <div class="side tornado-side">
+        <span class="who">Tornadon</span>
+        <span id="score">0 poäng</span>
+      </div>
+    </header>
+
+    <div id="board">
+      <div id="view">
+        <canvas id="game" width="512" height="288"></canvas>
+        <div id="tag-h" class="tag human">Människan</div>
+        <div id="tag-t" class="tag tornado">Tornadon</div>
+        <div id="shout" class="shout" hidden>Wiiii!</div>
+        <div id="plus" class="plus" hidden>+1</div>
+        <div id="countdown" hidden>3</div>
+        <div id="return-banner" hidden>Tillbaka om 5</div>
+        <div id="pause" hidden>
+          <div class="pause-card">
+            <h2>Paus</h2>
+            <p>Tryck på Escape för att köra igen.</p>
+            <button type="button" class="play secondary" id="btn-pause-menu">Till menyn</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer id="help">
+      <span id="help-human"><b>Människan</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · rusa <kbd>Shift</kbd> vänster eller <kbd>F</kbd></span>
+      <span id="help-tornado"><b>Tornadon</b> <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> · hoppa <kbd>Shift</kbd> höger · skjut <kbd>mellanslag</kbd></span>
+      <span><kbd>Esc</kbd> paus · <button type="button" id="sound-btn">Ljud på</button></span>
+    </footer>
+  </div>
+
+  <div id="menu" class="sheet">
+    <div class="card">
+      <p class="eyebrow">Lokalt · två spelare · samma dator</p>
+      <h1>Tornadojakten</h1>
+      <p class="lede">Ta alla mynt. Tre fångster så vinner tornadon.</p>
+      <p class="map-label">Karta</p>
+      <div class="maps" id="map-picks" role="group" aria-label="Karta"></div>
+      <p id="map-hint" class="map-hint"></p>
+      <p class="map-label">Styrning</p>
+      <div class="setting">
+        <span>Människan</span>
+        <div class="winds" id="human-control" role="group" aria-label="Människans styrning">
+          <button type="button" data-control="keys">Tangentbord</button>
+          <button type="button" data-control="pad">Handkontroll</button>
+        </div>
+      </div>
+      <div class="setting keys-pick" id="human-keys-row">
+        <span>Tangenter</span>
+        <div class="winds" id="human-keys" role="group" aria-label="Människans tangenter">
+          <button type="button" data-keys="wasd">W A S D</button>
+          <button type="button" data-keys="arrows">Pilar</button>
+        </div>
+      </div>
+      <div class="setting">
+        <span>Tornadon</span>
+        <div class="winds" id="tornado-control" role="group" aria-label="Tornadons styrning">
+          <button type="button" data-control="keys">Tangentbord</button>
+          <button type="button" data-control="pad">Handkontroll</button>
+        </div>
+      </div>
+      <div class="setting keys-pick" id="tornado-keys-row">
+        <span>Tangenter</span>
+        <div class="winds" id="tornado-keys" role="group" aria-label="Tornadons tangenter">
+          <button type="button" data-keys="wasd">W A S D</button>
+          <button type="button" data-keys="arrows">Pilar</button>
+        </div>
+      </div>
+      <p id="pad-note" class="map-hint" hidden></p>
+      <div class="actions">
+        <button type="button" class="play" id="btn-together">Spela tillsammans</button>
+        <button type="button" class="play secondary" id="btn-practice">Öva själv</button>
+      </div>
+      <details id="settings">
+        <summary>Inställningar</summary>
+        <div class="setting">
+          <span>Fångster</span>
+          <div class="stepper">
+            <button type="button" id="lives-minus" aria-label="Färre fångster">−</button>
+            <strong id="lives-val">3</strong>
+            <button type="button" id="lives-plus" aria-label="Fler fångster">+</button>
+          </div>
+        </div>
+        <div class="setting wind-setting">
+          <span>Vind</span>
+          <div class="winds" role="group" aria-label="Vindstyrka">
+            <button type="button" data-wind="lugn">Lugn</button>
+            <button type="button" data-wind="lagom">Lagom</button>
+            <button type="button" data-wind="vild">Vild</button>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div id="end" class="sheet" hidden>
+    <div class="card">
+      <h2 id="end-title">Människan klarade det!</h2>
+      <p id="end-body"></p>
+      <div class="actions">
+        <button type="button" class="play" id="btn-again">Spela igen</button>
+        <button type="button" class="play secondary" id="btn-menu">Till menyn</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="touch" aria-hidden="true">
+    <div class="cluster left">
+      <button type="button" data-k="KeyW" class="u">▲</button>
+      <button type="button" data-k="KeyA" class="l">◀</button>
+      <button type="button" data-k="KeyS" class="d">▼</button>
+      <button type="button" data-k="KeyD" class="r">▶</button>
+      <button type="button" data-k="KeyF" class="dash">Rusa</button>
+    </div>
+    <div class="cluster right">
+      <button type="button" data-k="ArrowUp" class="u">▲</button>
+      <button type="button" data-k="ArrowLeft" class="l">◀</button>
+      <button type="button" data-k="ArrowDown" class="d">▼</button>
+      <button type="button" data-k="ArrowRight" class="r">▶</button>
+      <button type="button" data-k="ShiftRight" class="dash">Hopp</button>
+      <button type="button" data-k="Space" class="shoot">Skjut</button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
