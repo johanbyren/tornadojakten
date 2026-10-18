@@ -46,7 +46,6 @@
 
   const params = new URLSearchParams(location.search);
   const DEBUG = params.has("debug");
-  const FAST = params.has("fast");
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const PAL = {
@@ -150,7 +149,7 @@
   let padsThisFrame = [];
   let padBindFrame = false;
   let countN = 3;
-  let countT = 0;
+  let countBeatAt = 0;
   let shoutT = 0;
   let shoutText = "";
   let plusT = 0;
@@ -1966,10 +1965,9 @@
     }
 
     if (mode === "countdown") {
-      countT += dt;
-      const step = FAST ? 0.05 : 0.75;
-      if (countT >= step) {
-        countT = 0;
+      const beat = countN > 0 ? 1000 : 600;
+      if (!document.hidden && performance.now() - countBeatAt >= beat) {
+        countBeatAt = performance.now();
         countN -= 1;
         if (countN > 0) sfxTick();
         else if (countN === 0) sfxGo();
@@ -2839,7 +2837,7 @@
     resetMatch();
     mode = "countdown";
     countN = 3;
-    countT = 0;
+    countBeatAt = performance.now();
     if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
     sfxTick();
   }
@@ -3065,6 +3063,9 @@
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", () => keys.clear());
   window.addEventListener("resize", fit);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && mode === "countdown") countBeatAt = performance.now();
+  });
   if (matchMedia("(pointer: coarse)").matches) document.body.classList.add("touch");
 
   computeTornadoFit();
